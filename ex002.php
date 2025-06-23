@@ -11,13 +11,15 @@
             4. Retirado a função do tamanhoCampo26, e implementado direto na função main, já que era usado apenas uma vez e a lógica é simples.
             5. Separada a função de validadorNomeValor para duas funções diferentes, validadorNome e validadorValor para que cada função tenha apenas um único propósito, ficando mais coerente.
             6. O campo de cidade, campo 60, foi mantido fixo após o comentário do Andre em dizer que não era necessário o usuário colocar a cidade, então foi mantido fixo com minha cidade.
+            7. Retirado todas as variáveis de tamanho, já que não são mais necessárias, e implementado o tamanho direto na construção do código PIX, assim como sugerido pelo Andre.
+            8. Construido as funções de validação de CPF, CNPJ, Telefone e Aleatória, separando cada uma em sua própria função, assim como sugerido pelo Andre, dessa forma ainda mantive a função de validacaoDeChaves, que agora chama as outras funções de validação, passando a chave e o tipo de chave como parâmetros.
     
         */
 
-        function construcaoPixSemCRC($tamanhoCampo, $tamanhoChave, $chave, $valorTamanho, $valor, $nomeTamanho, $nome) {
+        function construcaoPixSemCRC($chave, $valor, $nome) {
 
 
-            $copiaeColaSemCRC = "00020126{$tamanhoCampo}0014BR.GOV.BCB.PIX01{$tamanhoChave}{$chave}52040000530398654{$valorTamanho}{$valor}5802BR59{$nomeTamanho}{$nome}6009ARAUCARIA62070503***6304";
+            $copiaeColaSemCRC = "00020126" .(str_pad(strlen($chave)+22, 2, '0', STR_PAD_LEFT)). "0014BR.GOV.BCB.PIX01" . (str_pad(strlen($chave), 2, '0', STR_PAD_LEFT)) . "{$chave}52040000530398654" .(str_pad(strlen($valor), 2, '0', STR_PAD_LEFT)). "{$valor}5802BR59" .(str_pad(strlen($nome), 2, '0', STR_PAD_LEFT)). "{$nome}6009ARAUCARIA62070503***6304";
 
             return $copiaeColaSemCRC;
 
@@ -55,9 +57,9 @@
 
       }
 
-        function construcaoPix($tamanhoCampo, $tamanhoChave, $chave, $valorTamanho, $valor, $nomeTamanho, $nome, $hex) {
+        function construcaoPix($chave, $valor, $nome, $hex) {
 
-            $copiaeCola = "00020126{$tamanhoCampo}0014BR.GOV.BCB.PIX01{$tamanhoChave}{$chave}52040000530398654{$valorTamanho}{$valor}5802BR59{$nomeTamanho}{$nome}6009ARAUCARIA62070503***6304{$hex}";
+            $copiaeCola = "00020126" .(str_pad(strlen($chave)+22, 2, '0', STR_PAD_LEFT)). "0014BR.GOV.BCB.PIX01" . (str_pad(strlen($chave), 2, '0', STR_PAD_LEFT)) . "{$chave}52040000530398654" .(str_pad(strlen($valor), 2, '0', STR_PAD_LEFT)). "{$valor}5802BR59" .(str_pad(strlen($nome), 2, '0', STR_PAD_LEFT)). "{$nome}6009ARAUCARIA62070503***6304{$hex}";
 
             return $copiaeCola;
 
@@ -86,18 +88,183 @@
                     
         } 
 
+        function validarCPF($chave){
+
+            $chave = preg_replace('/[^0-9]/is', '', $chave);
+
+            //retira tudo que não é de 0 a 9, deixando a chave apenas com números.
+
+            if(strlen($chave) != 11 || preg_match('/(\d)\1{10}/', $chave)){
+
+                return false;
+
+            }
+
+            //verifica se o cpf digitado tem mais ou menos do que 11 ou se é uma sequência de mesmo número.
+
+            for ($tamanho = 9; $tamanho <11; $tamanho++){
+
+                for($digito = 0, $contador = 0; $contador < $tamanho; $contador++){
+
+                    $digito += $chave[$contador] * (($tamanho + 1) - $contador);
+
+                }
+
+                $digito = ((10 * $digito) % 11) % 10;
+                if($chave[$contador] != $digito) {
+
+                    return false;
+
+                }
+
+            }
+
+            return true;
+
+            /* Abre dois laços for, um ajusta o tamanho do cpf, já que iremos verficar primeiro os 9 primeiros digitos, e depois aumenta para 10, já que iremos verificar agora os 10 primeiros digitos, o segundo for faz todo o calculo para o digito verificador, no caso ele multiplica os valores de 10 até 2, descendo um a cada caracter, os soma e depois divide por 11 e pega o resto, se for menor que dois ele vir 0, se for igual ou maior vira 11 - o resto da dvisão, depois repete mas começando do 11. */
+
+            /* usado como referência o código de Rafael Neri (<script src="https://gist.github.com/rafael-neri/ab3e58803a08cb4def059fce4e3c0e40.js"></script>) */
+
+        }
+
+        function validarCNPJ($chave){
+
+            $chave = preg_replace('/[^0-9]/is', '', $chave);
+
+            //retira tudo que não é de 0 a 9, deixando a chave apenas com números.
+
+            if(strlen($chave) != 14 || preg_match('/(\d)\1{13}/', $chave)){
+
+                return false;
+
+            }
+
+            //verifica se a chave tem mais ou menos do que 14 digitos ou se é uma sequência de mesmo número.
+
+            for($tamanho = 12; $tamanho < 14; $tamanho++){
+
+                if($tamanho == 12){
+
+                    $digito = 5;
+
+                } else{
+
+                    $digito = 6;
+
+                }
+
+                //primeiro for verifica o tamanho para decidir o digito verificador.
+
+                for($contador = 0, $soma=0; $contador < $tamanho; $contador++){
+
+                    $soma += $chave[$contador] * $digito;
+                    if($digito == 2){
+
+                        $digito = 9;
+
+                    }else{
+                        
+                        $digito--;
+
+                    }
+
+                }
+
+                /* segundo for faz o calculo do digito verificador, jogando o resultado da soma e multiplicação na $soma e então verifica o digito, se for igual a dois, o digito vira nove, se for diferente de 2, ele se decrementa. */
+
+                $digito = $soma % 11;
+                if($chave[$tamanho] != ($digito < 2 ? 0 : 11 - $digito)){
+
+                    return false;
+
+                }
+
+                /* aqui o digito recebe o resto da divisão da soma por 11, e então verifica se a chave digitada tem o mesmo digito verificador, ela usa um operador ternário (?) para fazer um if resumido, se o digito for menor que 2, o resultado é 0, se não é 11 - o resto. */
+
+            }
+
+            return true;
+            //retorna verdadeiro caso tudo ocorra certo.
+
+            /* usado como referência o código de guisehn (<script src="https://gist.github.com/guisehn/3276302.js"></script>) */
+
+        }
+
+        function ajustarTelefone($chave){
+
+            if(validarCPF($chave) || validarCNPJ($chave)){
+
+                echo "Chave PIX inválida: Telefone não pode ser CPF ou CNPJ.\n";
+                exit("Encerrando o programa.\n");
+
+                //Novamente usando a função exit para encerrar o programa caso o usuário digite uma chave inválida, fazendo o código encerrar.
+
+            }
+
+            if (!str_starts_with($chave, '+55')){
+
+                    $chave = '+55' . $chave;
+
+            }
+            return $chave;
+
+            //verifica se o telefone começa com +55 e se não, coloca o +55.
+
+        }
+
+        function validarTelefone($chave){
+
+            if(preg_match("/^\+[0-9]{13}$/", $chave)){
+
+                $array = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '21', '22', '24', '27', '28', '31', '32', '33', '34', '35', '36', '37', '38', '41', '42', '43', '44', '45', '46', '47', '48', '49', '51', '53', '54', '55', '62', '63', '64', '65', '66', '67', '68', '69', '71', '73', '74', '75', '77', '79', '81', '82', '83', '84', '85', '86', '87', '88', '89', '92', '96', '97', '98', '99'];
+    
+                $ddd = substr($chave, 3, 2);
+    
+                if (in_array($ddd, $array)){
+    
+                    return true;
+    
+                }
+                return false;
+
+
+            }
+            return false;
+
+            /* verifica se o telefone começa com + e tem 14 digitos, verifica se não é um cpf e depois verifica se não é um cnpj. */ 
+
+
+            //verifica se o ddd está correto dentro dos ddds do Brasil.
+
+
+        }
+
+        function validarAleatoria($chave){
+
+            if(preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $chave)){
+
+                return true;
+
+            }
+
+            return false;
+
+            /* verifica o formato da chave aleatoria, contendo caracteres alfa numericos, com a primera parte tem 8 caracteres seguido de um hifen, depois 4 caracteres e um hifen, novamente 4 caracteres e um hifen, novamente e no final 12 caracteres, dessa forma também já impõe que precisa de exatamente 36 caracteres. */
+
+        }
+
         function validacaoDeChaves($chave, $tipo_chave) {
 
             $validadores = ['cpf' => 
-            function($chave){ return is_numeric($chave) && strlen($chave) == 11;
+            function($chave){ return validarCPF($chave);
             } , 'cnpj' => 
-            function($chave){ return is_numeric($chave) && strlen($chave) == 14;
+            function($chave){ return validarCNPJ($chave);
             } , 'email' => 
             function($chave){ return filter_var($chave, FILTER_VALIDATE_EMAIL);
             } , 'telefone' => 
-            function($chave){ return preg_match("/^\+[0-9]{12,13}$/", $chave) && (strlen($chave) == 13 || strlen($chave) == 14);
+            function($chave){ return validarTelefone($chave);
             } , 'aleatoria' => 
-            function($chave){ return strlen($chave) == 36;
+            function($chave){ return validarAleatoria($chave);
             }];
 
             if(array_key_exists($tipo_chave, $validadores)){
@@ -116,7 +283,8 @@
               }  
 
             /* Função usada para validar se a chave passada foi digitada corretamente dependendo do seu tipo, com algumas validações simples, com as validações passadas em um array associativo e depois feito um if para ver se a chave digitada pelo usuário está nos padrões do array. 
-            Trocada a função de validarChavePix para a nova validacaoDeChaves, retirado muito dos if's e implementados em um array associativo, assim como o Andre explicou na Daily no dia 17/06/2025. */
+            Trocada a função de validarChavePix para a nova validacaoDeChaves, retirado muito dos if's e implementados em um array associativo, assim como o Andre explicou na Daily no dia 17/06/2025. 
+            Mudança no dia 23/06/25: agora essa função chama outras funções para fazer a validação da chave, correspondendo seu tipo. */
         
          }
 
@@ -170,15 +338,11 @@
             $nome = strtoupper($nome);
             $nome = str_replace(' ', '', $nome);
             validarNome($nome);
-            $nomeTamanho = strlen($nome);
-            $nomeTamanho = str_pad($nomeTamanho, 2, '0', STR_PAD_LEFT);
 
             echo "Digite o valor a ser transferido (máximo 13 dígitos):\n";
             $valor = trim(fgets(STDIN));
             $valor = str_replace(' ','', $valor);
             validarValor($valor);
-            $valorTamanho = strlen($valor);
-            $valorTamanho = str_pad($valorTamanho, 2, '0', STR_PAD_LEFT);
 
             echo "Digite o tipo de chave PIX (cpf, cnpj, email, telefone, aleatoria):\n";
             $tipo_chave = trim(fgets(STDIN));
@@ -188,33 +352,24 @@
 
             echo "Digite a chave PIX:\n";
             $chave = trim(fgets(STDIN));
-            if($tipo_chave == 'telefone'){
+            $chave = str_replace(' ', '', $chave);
+            if ($tipo_chave == 'telefone'){
 
-                if (!str_starts_with($chave, '+55')){
-
-                    $chave = '+55' . $chave;
-
-                }
+                $chave = ajustarTelefone($chave);
 
             }
-            $chave = str_replace(' ', '', $chave);
             validacaoDeChaves($chave, $tipo_chave);
 
-            $tamanhoChave = strlen($chave);
-            $tamanhoChave = str_pad($tamanhoChave, 2, '0', STR_PAD_LEFT);
-
-            $tamanhoCampo = $tamanhoChave + 22;
-            $tamanhoCampo = str_pad($tamanhoCampo, 2, '0', STR_PAD_LEFT);
-
-            $copiaeColaSemCRC = construcaoPixSemCRC($tamanhoCampo, $tamanhoChave, $chave, $valorTamanho, $valor, $nomeTamanho, $nome);
+            $copiaeColaSemCRC = construcaoPixSemCRC($chave, $valor, $nome);
 
             $hex = crc16($copiaeColaSemCRC);
 
-            $copiaeCola = construcaoPix($tamanhoCampo, $tamanhoChave, $chave, $valorTamanho, $valor, $nomeTamanho, $nome, $hex);
+            $copiaeCola = construcaoPix($chave, $valor, $nome, $hex);
 
             echo "Código PIX gerado com sucesso: \n$copiaeCola\n";
 
-            /* Apenas fiz uns espaçamentos entre algumas linhas de código para deixar visualmente mais agradável, retirada a função tamanhoCampo26 e implementada a lógica direto na função main por ser utilizada apenas uma vez no código e ser uma lógica simples, adicionado alguns detalhes quando aberto no cmd, mas pouca coisa. */
+            /* Apenas fiz uns espaçamentos entre algumas linhas de código para deixar visualmente mais agradável, retirada a função tamanhoCampo26 e implementada a lógica direto na função main por ser utilizada apenas uma vez no código e ser uma lógica simples, adicionado alguns detalhes quando aberto no cmd, mas pouca coisa.
+            As variaveis de tamanho foram complementamente removidas após o Andre me dar sua opiniao sobre o codigo e ter me mostrado que não era necessario variaveis para isso. */
 
         }
         
